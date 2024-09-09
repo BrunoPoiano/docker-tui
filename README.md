@@ -23,7 +23,7 @@ Use `docker-tui shell` to open a container shell or `docker-tui log` to open a c
 Available commands:
 
 ## `docker-tui shell`
-<img src="\readme-items\docker-tui-shell.webm" alt="docker-tui shell" width="auto" >
+<img src="\readme-items\docker-tui-shell.mp4" alt="docker-tui shell" width="auto" height="500">
 
 ## `docker-tui log`
-<img src="\readme-items\docker-tui-log.webm" alt="docker-tui log" width="auto" >
+<img src="\readme-items\docker-tui-log.mp4" alt="docker-tui log" width="auto" height="500">
