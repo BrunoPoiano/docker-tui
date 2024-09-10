@@ -4,6 +4,32 @@ import curses
 import subprocess
 import os
 import argparse
+import threading
+import itertools
+import time
+
+def spinner_animation(stop_event, stdscr):
+    spinner = itertools.cycle(['|', '/', '-', '\\'])
+    while not stop_event.is_set():
+        stdscr.addstr(2, 0, "Running... " + next(spinner))
+        stdscr.refresh()
+        time.sleep(0.1)
+
+def run_command_with_loading(command, stdscr):
+    stop_event = threading.Event()
+
+    spinner_thread = threading.Thread(target=spinner_animation, args=(stop_event, stdscr))
+    spinner_thread.start()
+
+    result = subprocess.run(command.split(), stderr=subprocess.PIPE)
+
+    stop_event.set()
+    spinner_thread.join()
+
+    stdscr.clear()
+    stdscr.refresh()
+
+    return result
 
 def docker_tui_menu(stdscr):
     curses.cbreak()
@@ -107,8 +133,9 @@ def docker_tui(stdscr, mode=None):
 
             if key == curses.KEY_UP and current_selection > 0:
                 current_selection -= 1
-            elif key == curses.KEY_DOWN and current_selection < len(options) - 1:
-                current_selection += 1
+            elif key == curses.KEY_ENTER or key in [10, 13]:
+                # Value chosen
+                break
             elif key == curses.KEY_ENTER or key in [10, 13]:
                 # Value chosen
                 break
@@ -136,15 +163,23 @@ def docker_tui(stdscr, mode=None):
       curses.endwin()
 
     for command in commands:
+        result = None
         subprocess.run('clear')
-        result = subprocess.run(command.split(), stderr=subprocess.PIPE)
-        if result.returncode == 0:
+
+        if mode == 'restart':
+          retult = run_command_with_loading(command, stdscr)
+        else:
+          result = subprocess.run(command.split(), stderr=subprocess.PIPE)
+
+        if result and result.returncode == 0:
             return
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Docker TUI", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("mode", nargs='?', default='menu', help="""Specify the mode:
-        'emnu'    - Open options Menu
+        'menu'    - Open options Menu
         'shell'   - Open a shell
         'log'     - Follow container logs
         'restart' - Restart a container
