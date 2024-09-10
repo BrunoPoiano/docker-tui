@@ -26,8 +26,17 @@ def docker_tui(stdscr, mode=None):
     options = [f"{container[0]}: {container[2]}" for container in containers]
 
     current_selection = 0
+    title_space = 3
 
     title1 = "==================== Choose a Docker Container ====================="
+
+    if mode == "shell":
+        title1 = "==================== Choose a Docker Container to Shell into ====================="
+    elif mode == "log":
+        title1 = "==================== Choose a Docker Container to see logs ====================="
+    elif mode == "restart":
+        title1 = "==================== Choose a Docker Container to restart ====================="
+
     stdscr.addstr(1, (curses.COLS // 2) - (len(title1) // 2), title1)
 
     try:
@@ -37,10 +46,13 @@ def docker_tui(stdscr, mode=None):
             for index, option in enumerate(options):
                 if index == current_selection:
                     stdscr.attron(curses.A_REVERSE)
-                    stdscr.addstr(index + 3, 0, option)
+                    stdscr.addstr(index + title_space, 0, option)
                     stdscr.attroff(curses.A_REVERSE)
                 else:
                     stdscr.addstr(index + 3, 0, option)
+
+            footer_position = len(options) + title_space + 2
+            stdscr.addstr(footer_position, 0, "Quit: <crtl+c> | move: Arrow-up, Arrow-down | Choose: <enter>")
 
             stdscr.refresh()
 
@@ -57,6 +69,8 @@ def docker_tui(stdscr, mode=None):
         stdscr.clear()
         return
 
+
+
     stdscr.clear()
     stdscr.refresh()
 
@@ -66,6 +80,8 @@ def docker_tui(stdscr, mode=None):
         commands = [f"docker exec -it {container_id} bash", f"docker exec -it {container_id} sh"]
     elif mode == "log":
         commands = [f"docker logs -f {container_id}"]
+    elif mode == "restart":
+        commands = [f"docker restart {container_id}"]
     else:
         stdscr.refresh()
         stdscr.getch()
@@ -81,16 +97,22 @@ def docker_tui(stdscr, mode=None):
             return
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Docker TUI")
-    parser.add_argument("mode", nargs='?', default=None, help="Specify the mode: 'shell' to open a shell | 'log' to follow container logs")
+    parser = argparse.ArgumentParser(description="Docker TUI", formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("mode", nargs='?', default=None, help="""Specify the mode:
+        'shell'   - Open a shell
+        'log'     - Follow container logs
+        'restart' - Restart a container
+        """)
 
     args = parser.parse_args()
 
-    if args.mode not in ["shell", "log"]:
+    if args.mode not in ["shell", "log", 'restart']:
         print("==================== Choose a Docker Container =====================")
-        print("No valid mode provided.")
-        print("Use 'shell' to open a container shell")
-        print("Use 'log' to open a container logs")
+        print("""Specify the mode:
+            'shell'   - Open a shell
+            'log'     - Follow container logs
+            'restart' - Restart a container
+            """)
     else:
         try:
             curses.wrapper(docker_tui, mode=args.mode)
