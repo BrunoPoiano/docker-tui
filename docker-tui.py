@@ -5,6 +5,53 @@ import subprocess
 import os
 import argparse
 
+def docker_tui_menu(stdscr):
+    curses.cbreak()
+    stdscr.clear()
+    menu_options = [[0, 'shell',"Shell"],[1, 'log',"Log"],[2, 'restart',"Restart"]]
+    options = [f"{menu[0]}: {menu[2]}" for menu in menu_options]
+    current_selection = 0
+    title_space = 3
+
+    title1 = "==================== Choose an Option ====================="
+
+    stdscr.addstr(1, (curses.COLS // 2) - (len(title1) // 2), title1)
+
+    try:
+        while True:
+            stdscr.clear()
+            stdscr.addstr(1, (curses.COLS // 2) - (len(title1) // 2), title1)
+            for index, option in enumerate(options):
+                if index == current_selection:
+                    stdscr.attron(curses.A_REVERSE)
+                    stdscr.addstr(index + title_space, 0, option)
+                    stdscr.attroff(curses.A_REVERSE)
+                else:
+                    stdscr.addstr(index + 3, 0, option)
+
+            footer_position = len(options) + title_space + 2
+            stdscr.addstr(footer_position, 0, "Quit: <crtl+c> | move: Arrow-up, Arrow-down | Choose: <enter>")
+
+            stdscr.refresh()
+
+            key = stdscr.getch()
+
+            if key == curses.KEY_UP and current_selection > 0:
+                current_selection -= 1
+            elif key == curses.KEY_DOWN and current_selection < len(options) - 1:
+                current_selection += 1
+            elif key == curses.KEY_ENTER or key in [10, 13]:
+                # Value chosen
+                break
+    except KeyboardInterrupt:
+        stdscr.clear()
+        return
+
+    menu_selected = menu_options[current_selection][1]
+
+    docker_tui(stdscr, menu_selected)
+
+
 def docker_tui(stdscr, mode=None):
     curses.cbreak()
     stdscr.clear()
@@ -69,8 +116,6 @@ def docker_tui(stdscr, mode=None):
         stdscr.clear()
         return
 
-
-
     stdscr.clear()
     stdscr.refresh()
 
@@ -98,7 +143,8 @@ def docker_tui(stdscr, mode=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Docker TUI", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("mode", nargs='?', default=None, help="""Specify the mode:
+    parser.add_argument("mode", nargs='?', default='menu', help="""Specify the mode:
+        'emnu'    - Open options Menu
         'shell'   - Open a shell
         'log'     - Follow container logs
         'restart' - Restart a container
@@ -106,15 +152,19 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.mode not in ["shell", "log", 'restart']:
+    if args.mode not in ["shell", "log", 'restart', 'menu']:
         print("==================== Choose a Docker Container =====================")
         print("""Specify the mode:
+            'menu'    - Open options Menu
             'shell'   - Open a shell
             'log'     - Follow container logs
             'restart' - Restart a container
             """)
     else:
         try:
-            curses.wrapper(docker_tui, mode=args.mode)
+            if args.mode == "menu":
+              curses.wrapper(docker_tui_menu)
+            else:
+              curses.wrapper(docker_tui, mode=args.mode)
         except curses.error as e:
             print("")
