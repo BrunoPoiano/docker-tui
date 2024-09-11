@@ -7,40 +7,51 @@ import argparse
 import threading
 import itertools
 import time
+import sys
 
-def spinner_animation(stop_event, stdscr):
+
+def spinner_animation(stop_event, stdscr, row, col):
+    stdscr.clear()
     spinner = itertools.cycle(['|', '/', '-', '\\'])
     while not stop_event.is_set():
-        stdscr.addstr(2, 0, "Running... " + next(spinner))
+        stdscr.addstr(row, col, "Running... " + next(spinner))
         stdscr.refresh()
         time.sleep(0.1)
+
 
 def run_command_with_loading(command, stdscr):
     stop_event = threading.Event()
 
-    spinner_thread = threading.Thread(target=spinner_animation, args=(stop_event, stdscr))
+    # Start spinner in a separate thread
+    spinner_thread = threading.Thread(target=spinner_animation, args=(stop_event, stdscr, 2, 0))
     spinner_thread.start()
 
-    result = subprocess.run(command.split(), stderr=subprocess.PIPE)
-
-    stop_event.set()
-    spinner_thread.join()
+    try:
+        # Run command
+        result = subprocess.run(command.split(), stderr=subprocess.PIPE)
+    except KeyboardInterrupt:
+        # Stop spinner and raise KeyboardInterrupt to handle it cleanly
+        stop_event.set()
+        spinner_thread.join()
+        raise
+    else:
+        # Stop spinner after command finishes
+        stop_event.set()
+        spinner_thread.join()
 
     stdscr.clear()
     stdscr.refresh()
 
     return result
 
+
 def docker_tui_menu(stdscr):
-    curses.cbreak()
-    stdscr.clear()
-    menu_options = [[0, 'shell',"Shell"],[1, 'log',"Log"],[2, 'restart',"Restart"]]
+    menu_options = [[0, 'shell', "Shell"], [1, 'log', "Log"], [2, 'restart', "Restart"]]
     options = [f"{menu[0]}: {menu[2]}" for menu in menu_options]
     current_selection = 0
     title_space = 3
 
     title1 = "==================== Choose an Option ====================="
-
     stdscr.addstr(1, (curses.COLS // 2) - (len(title1) // 2), title1)
 
     try:
@@ -53,10 +64,10 @@ def docker_tui_menu(stdscr):
                     stdscr.addstr(index + title_space, 0, option)
                     stdscr.attroff(curses.A_REVERSE)
                 else:
-                    stdscr.addstr(index + 3, 0, option)
+                    stdscr.addstr(index + title_space, 0, option)
 
             footer_position = len(options) + title_space + 2
-            stdscr.addstr(footer_position, 0, "Quit: <crtl+c> | move: Arrow-up, Arrow-down | Choose: <enter>")
+            stdscr.addstr(footer_position, 0, "Quit: <ctrl+c> | Move: Arrow-up, Arrow-down | Choose: <enter>")
 
             stdscr.refresh()
 
@@ -66,25 +77,21 @@ def docker_tui_menu(stdscr):
                 current_selection -= 1
             elif key == curses.KEY_DOWN and current_selection < len(options) - 1:
                 current_selection += 1
-            elif key == curses.KEY_ENTER or key in [10, 13]:
-                # Value chosen
+            elif key in [10, 13]:  # Enter key
                 break
+
+        menu_selected = menu_options[current_selection][1]
+        docker_tui(stdscr, menu_selected)
+
     except KeyboardInterrupt:
-        stdscr.clear()
-        return
-
-    menu_selected = menu_options[current_selection][1]
-
-    docker_tui(stdscr, menu_selected)
+        # Gracefully handle ctrl+c
+        pass
 
 
 def docker_tui(stdscr, mode=None):
-    curses.cbreak()
     stdscr.clear()
-
     command = "docker ps"
     process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
-
     output, error = process.communicate()
     output = output.decode('utf-8')
     lines = output.split('\n')
@@ -122,10 +129,10 @@ def docker_tui(stdscr, mode=None):
                     stdscr.addstr(index + title_space, 0, option)
                     stdscr.attroff(curses.A_REVERSE)
                 else:
-                    stdscr.addstr(index + 3, 0, option)
+                    stdscr.addstr(index + title_space, 0, option)
 
-            footer_position = len(options) + title_space + 2
-            stdscr.addstr(footer_position, 0, "Quit: <crtl+c> | move: Arrow-up, Arrow-down | Choose: <enter>")
+            footer_position = len(options) + title_space + 3
+            stdscr.addstr(footer_position, 0, "Quit: <ctrl+c> | Menu: <m> | Move: Arrow-up, Arrow-down | Choose: <enter>")
 
             stdscr.refresh()
 
@@ -133,47 +140,38 @@ def docker_tui(stdscr, mode=None):
 
             if key == curses.KEY_UP and current_selection > 0:
                 current_selection -= 1
-            elif key == curses.KEY_ENTER or key in [10, 13]:
-                # Value chosen
+            elif key == curses.KEY_DOWN and current_selection < len(options) - 1:
+                current_selection += 1
+            elif key in [10, 13]:  # Enter key
                 break
-            elif key == curses.KEY_ENTER or key in [10, 13]:
-                # Value chosen
-                break
-    except KeyboardInterrupt:
-        stdscr.clear()
-        return
+            elif key == 27 or key in [ord('m'), ord('M')]:
+                docker_tui_menu(stdscr)
 
-    stdscr.clear()
-    stdscr.refresh()
+        container_id = containers[current_selection][1]
 
-    container_id = containers[current_selection][1]
-
-    if mode == "shell":
-        commands = [f"docker exec -it {container_id} bash", f"docker exec -it {container_id} sh"]
-    elif mode == "log":
-        commands = [f"docker logs -f {container_id}"]
-    elif mode == "restart":
-        commands = [f"docker restart {container_id}"]
-    else:
-        stdscr.refresh()
-        stdscr.getch()
-        return
-
-    if mode == "log":
-      curses.endwin()
-
-    for command in commands:
-        result = None
-        subprocess.run('clear')
-
-        if mode == 'restart':
-          retult = run_command_with_loading(command, stdscr)
+        if mode == "shell":
+            commands = [f"docker exec -it {container_id} bash", f"docker exec -it {container_id} sh"]
+        elif mode == "log":
+            commands = [f"docker logs -f {container_id}"]
+        elif mode == "restart":
+            commands = [f"docker restart {container_id}"]
         else:
-          result = subprocess.run(command.split(), stderr=subprocess.PIPE)
-
-        if result and result.returncode == 0:
             return
 
+        curses.endwin()
+        for command in commands:
+            result = None
+            if mode == 'restart':
+                result = run_command_with_loading(command, stdscr)
+            else:
+                result = subprocess.run(command.split(), stderr=subprocess.PIPE)
+
+            if result and result.returncode == 0:
+                sys.exit(0)
+
+    except KeyboardInterrupt:
+        # Ensure curses is cleaned up
+        pass
 
 
 if __name__ == "__main__":
@@ -188,18 +186,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.mode not in ["shell", "log", 'restart', 'menu']:
-        print("==================== Choose a Docker Container =====================")
-        print("""Specify the mode:
-            'menu'    - Open options Menu
-            'shell'   - Open a shell
-            'log'     - Follow container logs
-            'restart' - Restart a container
-            """)
+        print("Invalid mode. Use 'menu', 'shell', 'log', or 'restart'.")
     else:
         try:
             if args.mode == "menu":
-              curses.wrapper(docker_tui_menu)
+                curses.wrapper(docker_tui_menu)
             else:
-              curses.wrapper(docker_tui, mode=args.mode)
+                curses.wrapper(docker_tui, mode=args.mode)
+        except KeyboardInterrupt:
+            # Ensure curses is cleaned up when exiting
+            curses.endwin()
+            sys.exit(0)
         except curses.error as e:
-            print("")
+          print("")
