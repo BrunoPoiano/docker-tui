@@ -1,25 +1,34 @@
 <h1 align="center">Docker-TUI</h1>
 
 <h3 align="center">
-  An easy and fast human friendly terminal interface for accessing Docker Shell and Logs.
+  An easy and fast human friendly terminal interface to interact with docker.
 </h3>
 
-### From source:
+# Instalation
+
+#### clone repository
 ```bash
 git clone git@github.com:BrunoPoiano/docker-tui.git
 cd docker-tui;
+```
+#### run
+```bash
 ./docker-tui-link.sh
 ```
-
+#### or add to your ~/.bashrc or ~/.zshrc
+```bash
+chmod +x docker-tui.py <- make executable
+Add alias docker-tui="/path/to/docker-tui/docker-tui.py"
+```
 
 # Usage
 
-Use `docker-tui shell` to open a container shell or `docker-tui log` to open a container logs
+Use `docker-tui` or `docker-tui menu` to open the options menu or use the individual commands:
 
-Available commands:
+- `docker-tui shell`
+- `docker-tui log`
+- `docker-tui start`
+- `docker-tui restart`
+- `docker-tui stop`
 
-## `docker-tui shell`
-<img src="readme-items\docker-tui-shell.gif" alt="docker-tui shell" width="auto" height="500">
-
-## `docker-tui log`
-<img src="readme-items\docker-tui-log.gif" alt="docker-tui log" width="auto" height="500">
+<img src="readme-items\menu.png" alt="docker-tui menu" width="auto" height="500">
