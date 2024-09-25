@@ -9,7 +9,8 @@
 #### clone repository
 ```bash
 git clone git@github.com:BrunoPoiano/docker-tui.git
-cd docker-tui;
+cd docker-tui
+chmod +x docker-tui.py
 ```
 #### run
 ```bash
@@ -17,7 +18,6 @@ cd docker-tui;
 ```
 #### or add to your ~/.bashrc or ~/.zshrc
 ```bash
-chmod +x docker-tui.py <- make executable
 Add alias docker-tui="/path/to/docker-tui/docker-tui.py"
 ```
 
